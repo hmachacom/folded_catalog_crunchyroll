@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Explorador de Anime Doblado en Crunchyroll</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+      rel="stylesheet" />
+    <!-- Chosen Palette: Warm Harmony -->
+    <!-- Application Structure Plan: He diseñado una aplicación de una sola página con un enfoque de "dashboard interactivo". La estructura prioriza la tarea principal del usuario: encontrar rápidamente si un anime está doblado. Comienza con una breve introducción contextual, seguida por la herramienta principal: un explorador de catálogo con búsqueda en vivo y filtros de género. A diferencia del informe lineal, esto permite un acceso no secuencial e instantáneo a la información. La lista de anime se presenta en tarjetas visuales en lugar de una tabla densa, mejorando la legibilidad y la experiencia móvil. A continuación, una sección de "Estadísticas Clave" con un gráfico de barras visualiza la distribución de géneros, ofreciendo una síntesis rápida de los datos que no era obvia en el informe original. Finalmente, la guía práctica y las conclusiones se reestructuran en secciones claras y accionables. Esta arquitectura centrada en el usuario transforma un informe estático en una herramienta útil y eficiente. -->
+    <!-- Visualization & Content Choices: La información principal (la lista de animes) se transformó de una tabla estática a una cuadrícula de tarjetas interactivas. El objetivo era mejorar la organización y la capacidad de búsqueda. La interacción clave es una barra de búsqueda con filtrado en tiempo real y botones de filtro por género (Acción, Fantasía, Comedia, etc.), implementado con JavaScript puro. Esto se justifica porque permite a los usuarios responder a su pregunta principal ("¿Está doblado X anime?") de manera instantánea. Para resumir la composición del catálogo, que era un punto cualitativo en el informe, creé un gráfico de barras horizontales con Chart.js (Canvas). El objetivo es comparar la prevalencia de los géneros. El gráfico muestra dinámicamente cuántos títulos doblados pertenecen a cada género, haciendo tangible la estrategia de contenido de Crunchyroll. La guía de usuario se rediseñó de texto plano a pasos visualmente separados con íconos para mejorar la claridad. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f8f7f4;
+        color: #2c3e50;
+      }
+      .active-filter {
+        background-color: #ff6740 !important;
+        color: white !important;
+        border-color: #ff6740 !important;
+      }
+      .chart-container {
+        position: relative;
+        margin: auto;
+        height: 450px;
+        width: 100%;
+        max-width: 800px;
+      }
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+      }
+      .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+    </style>
+  </head>
+  <body class="antialiased">
+    <header class="bg-white shadow-md sticky top-0 z-20">
+      <div
+        class="container mx-auto px-6 py-4 flex justify-between items-center">
+        <h1 class="text-xl md:text-2xl font-bold text-[#FF6740]">
+          <span class="text-[#2c3e50]">Catálogo Doblado</span> Crunchyroll
+        </h1>
+        <nav>
+          <a
+            href="#explorer"
+            class="text-gray-600 hover:text-[#FF6740] px-3 py-2 rounded-md text-sm font-medium"
+            >Explorador</a
+          >
+          <a
+            href="#stats"
+            class="text-gray-600 hover:text-[#FF6740] px-3 py-2 rounded-md text-sm font-medium hidden md:inline"
+            >Estadísticas</a
+          >
+          <a
+            href="#guide"
+            class="text-gray-600 hover:text-[#FF6740] px-3 py-2 rounded-md text-sm font-medium"
+            >Guía</a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8 md:py-12">
+      <section id="intro" class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">
+          Descubre el Anime con Doblaje Latino
+        </h2>
+        <p class="max-w-3xl mx-auto text-gray-600">
+          El doblaje al español latino es un pilar fundamental en la estrategia
+          de Crunchyroll para la región, respondiendo a una fuerte preferencia
+          cultural. Esta herramienta interactiva te permite explorar fácilmente
+          el creciente catálogo de series y películas que cuentan con doblaje,
+          para que disfrutes del mejor anime en tu idioma.
+        </p>
+      </section>
+
+      <section id="explorer" class="mb-16">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg">
+          <h3 class="text-2xl font-bold mb-6 text-center">
+            Explorador de Catálogo
+          </h3>
+
+          <div class="mb-6">
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Buscar por título... (ej. Jujutsu Kaisen)"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6740] focus:border-transparent transition" />
+          </div>
+
+          <div class="mb-8 text-center">
+            <p class="font-semibold mb-3">Filtrar por género:</p>
+            <div
+              id="genreFilters"
+              class="flex flex-wrap justify-center gap-2"></div>
+          </div>
+
+          <div
+            id="results-summary"
+            class="mb-4 text-center text-gray-600"></div>
+
+          <div id="animeGrid" class="card-grid"></div>
+
+          <div id="no-results" class="hidden text-center py-12">
+            <p class="text-xl font-semibold text-gray-500">
+              No se encontraron resultados.
+            </p>
+            <p class="text-gray-400">
+              Intenta con otra búsqueda o reinicia los filtros.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="stats" class="mb-16">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg">
+          <h3 class="text-2xl font-bold mb-2 text-center">
+            Estadísticas Clave del Catálogo Doblado
+          </h3>
+          <p class="text-center text-gray-500 mb-8">
+            Una mirada a la distribución de géneros populares en el catálogo
+            doblado.
+          </p>
+          <div class="chart-container">
+            <canvas id="genreChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="guide">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg">
+          <h3 class="text-2xl font-bold mb-6 text-center">
+            ¿Cómo Encontrar Contenido Doblado en Crunchyroll?
+          </h3>
+          <div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
+            <div class="bg-gray-50 p-6 rounded-lg">
+              <h4 class="font-bold text-lg mb-3">
+                1. Usar el Filtro "Doblado"
+              </h4>
+              <ol class="list-decimal list-inside space-y-2 text-gray-600">
+                <li>
+                  Ve a <span class="font-semibold">"Explorar"</span> y luego a
+                  <span class="font-semibold">"Ver Todo"</span>.
+                </li>
+                <li>Abre los <span class="font-semibold">"FILTROS"</span>.</li>
+                <li>
+                  En la sección "Idioma", selecciona
+                  <span class="font-semibold">"Doblado"</span>.
+                </li>
+                <li>
+                  ¡Recuerda! Esto muestra doblajes en todos los idiomas. Deberás
+                  verificar el audio en el siguiente paso.
+                </li>
+              </ol>
+            </div>
+            <div class="bg-gray-50 p-6 rounded-lg">
+              <h4 class="font-bold text-lg mb-3">
+                2. Seleccionar el Audio Correcto
+              </h4>
+              <ol class="list-decimal list-inside space-y-2 text-gray-600">
+                <li>Una vez que elijas un anime, inicia la reproducción.</li>
+                <li>
+                  Haz clic en el icono de engranaje (⚙️) en el reproductor.
+                </li>
+                <li>Selecciona <span class="font-semibold">"Audio"</span>.</li>
+                <li>
+                  Elige
+                  <span class="font-semibold">"Español (América Latina)"</span>
+                  de la lista.
+                </li>
+              </ol>
+            </div>
+          </div>
+          <p class="text-center mt-8 text-sm text-gray-500">
+            Nota: La disponibilidad del contenido puede variar según tu región
+            debido a las licencias de transmisión.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-16">
+      <div class="container mx-auto px-6 py-4 text-center text-sm">
+        <p>
+          Aplicación creada para visualizar el informe sobre anime doblado en
+          Crunchyroll.
+        </p>
+        <p>
+          &copy; 2024. La información se basa en el reporte proporcionado y
+          puede no reflejar el catálogo en tiempo real.
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const animeData = [
+          {
+            title: "A Certain Magical Index",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Acción", "Fantasía", "Ciencia Ficción"],
+          },
+          {
+            title: "A Condition Called Love",
+            type: "Serie",
+            details: "Simuldub Primavera 2024.",
+            genres: ["Romance", "Escolar"],
+          },
+          {
+            title: "A Couple of Cuckoos",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Escolar"],
+          },
+          {
+            title: "A Galaxy Next Door",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance"],
+          },
+          {
+            title: "A Returner's Magic Should Be Special",
+            type: "Serie",
+            details: "Simuldub Otoño 2023.",
+            genres: ["Acción", "Fantasía", "Escolar"],
+          },
+          {
+            title: "After-school Hanako-kun",
+            type: "Serie",
+            details: "Simuldub Otoño 2023.",
+            genres: ["Comedia", "Sobrenatural"],
+          },
+          {
+            title: "Aharen-san wa Hakarenai",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Comedia", "Romance", "Escolar"],
+          },
+          {
+            title: "Akashic Records of Bastard Magic Instructor",
+            type: "Serie",
+            details: "Anunciado en 2019.",
+            genres: ["Acción", "Fantasía", "Escolar"],
+          },
+          {
+            title: "Anohana: The Flower We Saw That Day",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Drama", "Slice of Life"],
+          },
+          {
+            title: "The Ancient Magus' Bride",
+            type: "Serie",
+            details: "Temporada 2, OAD #2.",
+            genres: ["Fantasía", "Slice of Life", "Misterio"],
+          },
+          {
+            title: "The Aristocrat's Otherworldly Adventure",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Aventura", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Battle Game in 5 Seconds",
+            type: "Serie",
+            details: "Doblaje latino anunciado.",
+            genres: ["Acción", "Juegos"],
+          },
+          {
+            title: "The Beginning After the End",
+            type: "Serie",
+            details: "Simuldub Primavera 2025.",
+            genres: ["Acción", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Black Butler",
+            type: "Serie",
+            details: "Emerald Witch & Public School Arcs.",
+            genres: ["Misterio", "Sobrenatural", "Histórico"],
+          },
+          {
+            title: "Black Clover",
+            type: "Serie",
+            details: "Popular, con doblaje.",
+            genres: ["Acción", "Fantasía", "Shonen"],
+          },
+          {
+            title: "Blue Lock",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Deportes", "Shonen"],
+          },
+          {
+            title: "Boogiepop and Others",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Misterio", "Psicológico", "Sobrenatural"],
+          },
+          {
+            title: "Bureau of Paranormal Investigation",
+            type: "Serie",
+            details: 'Mencionado como "Doblado".',
+            genres: ["Misterio", "Sobrenatural"],
+          },
+          {
+            title: "Bye Bye, Earth",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Aventura", "Fantasía"],
+          },
+          {
+            title: "The Café Terrace and Its Goddesses",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Harem"],
+          },
+          {
+            title: "Chainsaw Man",
+            type: "Serie",
+            details: "Simuldub, popular.",
+            genres: ["Acción", "Fantasía", "Shonen"],
+          },
+          {
+            title: "Chillin' in Another World with Level 2 Super Cheat Powers",
+            type: "Serie",
+            details: "Simuldub Primavera 2024.",
+            genres: ["Aventura", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Classroom of the Elite",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Drama", "Psicológico", "Escolar"],
+          },
+          {
+            title: "Dan Da Dan",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Comedia", "Ciencia Ficción"],
+          },
+          {
+            title: "DARLING in the FRANXX",
+            type: "Serie",
+            details: "Anunciado en 2019.",
+            genres: ["Acción", "Ciencia Ficción", "Mecha"],
+          },
+          {
+            title: "Date A Live",
+            type: "Serie",
+            details: "Temporada 4.",
+            genres: ["Comedia", "Romance", "Ciencia Ficción"],
+          },
+          {
+            title: "Death March to the Parallel World Rhapsody",
+            type: "Serie",
+            details: "Anunciado en 2019.",
+            genres: ["Aventura", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Death Parade",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Drama", "Misterio", "Psicológico"],
+          },
+          {
+            title: "Demon Slayer: Kimetsu no Yaiba",
+            type: "Serie",
+            details: "Varios arcos doblados.",
+            genres: ["Acción", "Fantasía", "Shonen"],
+          },
+          {
+            title: "The Devil is a Part-Timer!",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Comedia", "Fantasía"],
+          },
+          {
+            title: "Dragon Ball",
+            type: "Serie",
+            details: "Clásico, doblaje disponible.",
+            genres: ["Acción", "Aventura", "Shonen"],
+          },
+          {
+            title: "Dragon Ball DAIMA",
+            type: "Serie",
+            details: "Doblaje disponible.",
+            genres: ["Acción", "Aventura", "Shonen"],
+          },
+          {
+            title: "Dragon Ball GT",
+            type: "Serie",
+            details: "Doblaje disponible.",
+            genres: ["Acción", "Aventura", "Shonen"],
+          },
+          {
+            title: "Dragon Ball Super",
+            type: "Serie",
+            details: "Popular, con doblaje latino.",
+            genres: ["Acción", "Aventura", "Shonen"],
+          },
+          {
+            title: "Dragon Ball Z",
+            type: "Serie",
+            details: "Clásico, doblaje disponible.",
+            genres: ["Acción", "Aventura", "Shonen"],
+          },
+          {
+            title: "Dragon Ball Z Kai",
+            type: "Serie",
+            details: "Temporadas 3 y 4.",
+            genres: ["Acción", "Aventura", "Shonen"],
+          },
+          {
+            title: "Dr. Stone",
+            type: "Serie",
+            details: "Todas las temporadas.",
+            genres: ["Aventura", "Ciencia Ficción", "Shonen"],
+          },
+          {
+            title: "The Duke of Death and His Maid",
+            type: "Serie",
+            details: "Temporada 3.",
+            genres: ["Comedia", "Fantasía", "Romance"],
+          },
+          {
+            title: "Failure Frame",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Fire Force",
+            type: "Serie",
+            details: "Temporada 3.",
+            genres: ["Acción", "Fantasía", "Shonen"],
+          },
+          {
+            title: "Frieren: Tras finalizar el viaje",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Aventura", "Drama", "Fantasía"],
+          },
+          {
+            title: "Fruits Basket",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Drama", "Romance", "Slice of Life"],
+          },
+          {
+            title: "Girlfriend, Girlfriend",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Comedia", "Romance", "Harem"],
+          },
+          {
+            title: "Gods' Games We Play",
+            type: "Serie",
+            details: "Simuldub Primavera 2024.",
+            genres: ["Fantasía", "Juegos"],
+          },
+          {
+            title: "GOBLIN SLAYER II",
+            type: "Serie",
+            details: "Simuldub Otoño 2023.",
+            genres: ["Acción", "Fantasía"],
+          },
+          {
+            title: "The Greatest Demon Lord Is Reborn as a Typical Nobody",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Fantasía", "Isekai"],
+          },
+          {
+            title: "The Gorilla God's Go-To Girl",
+            type: "Serie",
+            details: "Simuldub Primavera 2025.",
+            genres: ["Comedia", "Romance"],
+          },
+          {
+            title: "Heaven Official's Blessing",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Aventura", "Fantasía", "Romance"],
+          },
+          {
+            title: "Hell's Paradise: Jigokuraku",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Fantasía", "Histórico"],
+          },
+          {
+            title: "Horimiya: The Missing Pieces",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Escolar"],
+          },
+          {
+            title: "I Got a Cheat Skill in Another World",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Fantasía", "Isekai"],
+          },
+          {
+            title: "I Shall Survive Using Potions",
+            type: "Serie",
+            details: "Simuldub Otoño 2023.",
+            genres: ["Aventura", "Fantasía", "Isekai"],
+          },
+          {
+            title: "I'm in Love with the Villainess",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Fantasía", "Romance"],
+          },
+          {
+            title: "I'm the Villainess, So I'm Taming the Final Boss",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Fantasía", "Romance"],
+          },
+          {
+            title: "I've Been Killing Slimes For 300 Years",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Comedia", "Fantasía", "Slice of Life"],
+          },
+          {
+            title: "Jujutsu Kaisen",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Fantasía", "Shonen"],
+          },
+          {
+            title: "Kaiju No. 8",
+            type: "Serie",
+            details: "Simuldub Primavera 2024.",
+            genres: ["Acción", "Ciencia Ficción", "Shonen"],
+          },
+          {
+            title: "Kakuriyo -Bed & Breakfast for Spirits-",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Fantasía", "Slice of Life", "Romance"],
+          },
+          {
+            title: "Kamisama Kiss",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Fantasía", "Romance"],
+          },
+          {
+            title: "KamiKatsu",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Fantasía", "Isekai"],
+          },
+          {
+            title: "KONOSUBA",
+            type: "Serie",
+            details: "Temporada 2 y 3.",
+            genres: ["Aventura", "Comedia", "Fantasía"],
+          },
+          {
+            title: "KOWLOON GENERIC ROMANCE",
+            type: "Serie",
+            details: "Doblaje confirmado.",
+            genres: ["Misterio", "Romance"],
+          },
+          {
+            title: "Laid-Back Camp",
+            type: "Serie",
+            details: "Temporada 3.",
+            genres: ["Slice of Life"],
+          },
+          {
+            title: "Link Click",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Drama", "Misterio", "Sobrenatural"],
+          },
+          {
+            title: "Los diarios de la boticaria",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Drama", "Misterio", "Histórico"],
+          },
+          {
+            title: "Love After World Domination",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Comedia", "Romance"],
+          },
+          {
+            title: "Lycoris Recoil",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción"],
+          },
+          {
+            title: "Magic Maker",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Fantasía", "Isekai"],
+          },
+          {
+            title: "Masamune-kun's Revenge R",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Escolar"],
+          },
+          {
+            title: "MASHLE: Magic and Muscles",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Comedia", "Fantasía"],
+          },
+          {
+            title: "The Maid I hired Recently is Mysterious",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Misterio", "Slice of Life"],
+          },
+          {
+            title: "Meiji Tokyo Renka",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Fantasía", "Romance", "Histórico"],
+          },
+          {
+            title: "Metallic Rouge",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Ciencia Ficción", "Mecha"],
+          },
+          {
+            title: "Midnight occult civil servants",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Misterio", "Sobrenatural"],
+          },
+          {
+            title: "Mieruko-chan",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Comedia", "Horror", "Sobrenatural"],
+          },
+          {
+            title: "Mob Psycho 100",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Comedia", "Sobrenatural"],
+          },
+          {
+            title: "Mobile Suit Gundam: The Witch from Mercury",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Ciencia Ficción", "Mecha"],
+          },
+          {
+            title: "Mononoke",
+            type: "Serie",
+            details: 'Mencionado como "Doblado".',
+            genres: ["Misterio", "Horror", "Psicológico"],
+          },
+          {
+            title: "mono",
+            type: "Serie",
+            details: "Doblaje confirmado.",
+            genres: ["Slice of Life"],
+          },
+          {
+            title: "Mushoku Tensei: Jobless Reincarnation",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Aventura", "Drama", "Fantasía", "Isekai"],
+          },
+          {
+            title: "My Dress-Up Darling",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Slice of Life"],
+          },
+          {
+            title: "My Hero Academia",
+            type: "Serie",
+            details: "Popular, con doblaje.",
+            genres: ["Acción", "Shonen", "Escolar"],
+          },
+          {
+            title: "My Hero Academia: Vigilantes",
+            type: "Serie",
+            details: "Simuldub Primavera 2025.",
+            genres: ["Acción", "Shonen"],
+          },
+          {
+            title: "My Home Hero",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Drama", "Thriller"],
+          },
+          {
+            title: "My Love Story with Yamada-kun at Lv999",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance"],
+          },
+          {
+            title: "My Next Life as a Villainess",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Fantasía", "Isekai"],
+          },
+          {
+            title: "My One-Hit Kill Sister",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Aventura", "Comedia", "Fantasía"],
+          },
+          {
+            title: "My Unique Skill Makes Me OP Even at Level 1",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Aventura", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Nina the Starry Bride",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Drama", "Fantasía", "Romance"],
+          },
+          {
+            title: "Noblesse",
+            type: "Serie",
+            details: "Crunchyroll Original.",
+            genres: ["Acción", "Sobrenatural", "Escolar"],
+          },
+          {
+            title: "Once Upon a Witch's Death",
+            type: "Serie",
+            details: "Doblaje confirmado.",
+            genres: ["Fantasía", "Misterio"],
+          },
+          {
+            title: "One Piece",
+            type: "Serie",
+            details: "Popular, con doblaje.",
+            genres: ["Acción", "Aventura", "Shonen"],
+          },
+          {
+            title: "The Ossan Newbie Adventurer",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Aventura", "Fantasía"],
+          },
+          {
+            title: "Our Last Crusade or the Rise of a New World",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Acción", "Fantasía", "Romance"],
+          },
+          {
+            title: "Psychic Princess",
+            type: "Serie",
+            details: 'Opción "Dubbed" disponible.',
+            genres: ["Comedia", "Romance", "Histórico"],
+          },
+          {
+            title: "Ranking of Kings",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Aventura", "Fantasía"],
+          },
+          {
+            title: "Raven of the Inner Palace",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Drama", "Misterio", "Histórico"],
+          },
+          {
+            title: "Re:Monster",
+            type: "Serie",
+            details: "Simuldub Primavera 2024.",
+            genres: ["Acción", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Re:ZERO -Starting Life in Another World-",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Drama", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Reborn as a Vending Machine",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Fantasía", "Isekai"],
+          },
+          {
+            title: "Rent-a-Girlfriend",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Comedia", "Romance", "Escolar"],
+          },
+          {
+            title: "Requiem of the Rose King",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Drama", "Histórico"],
+          },
+          {
+            title: "7th Time Loop",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Fantasía", "Romance"],
+          },
+          {
+            title: "Shangri-La Frontier",
+            type: "Serie",
+            details: "Simuldub Otoño 2023.",
+            genres: ["Acción", "Aventura", "Juegos"],
+          },
+          {
+            title: "Shadows House",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Misterio", "Sobrenatural", "Slice of Life"],
+          },
+          {
+            title: "Shikimori's Not Just a Cutie",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Escolar"],
+          },
+          {
+            title: "The Shiunji Family Children",
+            type: "Serie",
+            details: "Simuldub Primavera 2025.",
+            genres: ["Comedia", "Romance", "Harem"],
+          },
+          {
+            title: "Science Fell in Love, So I Tried to Prove It",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance"],
+          },
+          {
+            title: "Skip and Loafer",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Escolar"],
+          },
+          {
+            title: "Skeleton Knight in Another World",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title: "Solo Leveling",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title: "Spy x Family",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Comedia", "Shonen"],
+          },
+          {
+            title: "Sugar Apple Fairy Tale",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Aventura", "Fantasía", "Romance"],
+          },
+          {
+            title: "Summoned to Another World for a Second Time",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Aventura", "Comedia", "Fantasía"],
+          },
+          {
+            title: "That Time I Got Reincarnated as a Slime",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title: "Teogonia",
+            type: "Serie",
+            details: "Doblaje confirmado.",
+            genres: ["Acción", "Fantasía"],
+          },
+          {
+            title: "The Brilliant Healer's New Life in the Shadows",
+            type: "Serie",
+            details: "Simuldub Primavera 2025.",
+            genres: ["Fantasía", "Slice of Life"],
+          },
+          {
+            title: "The Dawn of the Witch",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title: "The Ice Guy and His Cool Female Colleague",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Slice of Life"],
+          },
+          {
+            title: "The Legendary Hero is Dead!",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Aventura", "Comedia"],
+          },
+          {
+            title: "The Misfit of Demon King Academy",
+            type: "Serie",
+            details: "Temporada 1.",
+            genres: ["Acción", "Fantasía", "Escolar"],
+          },
+          {
+            title: "The Rising of the Shield Hero",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title: "To Be Hero X",
+            type: "Serie",
+            details: "Simuldub Primavera 2025.",
+            genres: ["Acción", "Comedia", "Superhéroes"],
+          },
+          {
+            title: "To Your Eternity",
+            type: "Serie",
+            details: "Temporada 1.",
+            genres: ["Aventura", "Drama", "Fantasía"],
+          },
+          {
+            title: "Tokyo Revengers",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Drama", "Shonen"],
+          },
+          {
+            title: "Tomo-chan Is a Girl!",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Escolar"],
+          },
+          {
+            title: "TONIKAWA: Over The Moon For You",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Comedia", "Romance", "Slice of Life"],
+          },
+          {
+            title: "Tower of God",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title: "True Beauty",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Drama", "Romance"],
+          },
+          {
+            title: "The Unaware Atelier Meister",
+            type: "Serie",
+            details: "Simuldub Primavera 2025.",
+            genres: ["Fantasía", "Slice of Life"],
+          },
+          {
+            title: "Uzaki-chan Wants to Hang Out!",
+            type: "Serie",
+            details: "Temporada 1.",
+            genres: ["Comedia", "Romance", "Slice of Life"],
+          },
+          {
+            title: "Vampire Dormitory",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Sobrenatural"],
+          },
+          {
+            title: "Vinland Saga",
+            type: "Serie",
+            details: "Temporada 2.",
+            genres: ["Acción", "Aventura", "Drama"],
+          },
+          {
+            title: "Why Raeliana Ended Up at the Duke's Mansion",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Fantasía", "Misterio", "Romance"],
+          },
+          {
+            title: "WIND BREAKER",
+            type: "Serie",
+            details: "Temporada 1 y 2.",
+            genres: ["Acción", "Shonen", "Escolar"],
+          },
+          {
+            title: "Wistoria: Wand & Sword",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title: "The Witch and the Beast",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Acción", "Fantasía", "Misterio"],
+          },
+          {
+            title: "WITCH WATCH",
+            type: "Serie",
+            details: "Doblaje confirmado.",
+            genres: ["Comedia", "Fantasía", "Romance"],
+          },
+          {
+            title: "WONDER EGG PRIORITY",
+            type: "Serie",
+            details: 'Opción "Dub" disponible.',
+            genres: ["Drama", "Fantasía", "Psicológico"],
+          },
+          {
+            title: "Yakuza Fiancé: Raise wa Tanin ga Ii",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Drama", "Romance"],
+          },
+          {
+            title: "Yona of the Dawn",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title: "Yuri Is My Job!",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Romance", "Slice of Life"],
+          },
+          {
+            title: "Zenshu",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Comedia", "Slice of Life"],
+          },
+          {
+            title: "ZOM 100: Bucket List of the Dead",
+            type: "Serie",
+            details: "Doblaje latino disponible.",
+            genres: ["Acción", "Comedia", "Horror"],
+          },
+          {
+            title: "Dragon Ball Super: Super Hero",
+            type: "Película",
+            details: "Popular película de la franquicia.",
+            genres: ["Acción", "Aventura", "Shonen"],
+          },
+          {
+            title: "Jujutsu Kaisen 0",
+            type: "Película",
+            details: "Precuela de la popular serie.",
+            genres: ["Acción", "Fantasía", "Shonen"],
+          },
+          {
+            title:
+              "That Time I Got Reincarnated as a Slime The Movie – Scarlet Bond",
+            type: "Película",
+            details: "Basada en la popular serie.",
+            genres: ["Acción", "Aventura", "Fantasía"],
+          },
+          {
+            title:
+              "JUJUTSU KAISEN: Hidden Inventory / Premature Death – The Movie",
+            type: "Película",
+            details: "Estreno Verano 2025.",
+            genres: ["Acción", "Fantasía", "Shonen"],
+          },
+        ];
+
+        const searchInput = document.getElementById("searchInput");
+        const animeGrid = document.getElementById("animeGrid");
+        const genreFiltersContainer = document.getElementById("genreFilters");
+        const resultsSummary = document.getElementById("results-summary");
+        const noResults = document.getElementById("no-results");
+
+        let activeGenre = "Todos";
+
+        const allGenres = [
+          ...new Set(animeData.flatMap((a) => a.genres)),
+        ].sort();
+
+        const createCard = (anime) => {
+          const isMovie = anime.type === "Película";
+          const card = document.createElement("div");
+          card.className =
+            "card bg-white rounded-lg shadow-md overflow-hidden border border-gray-200";
+          card.innerHTML = `
+                    <div class="p-5">
+                        <div class="flex justify-between items-start mb-2">
+                             <h4 class="text-lg font-bold text-gray-800">${
+                               anime.title
+                             }</h4>
+                             <span class="text-xs font-semibold ${
+                               isMovie
+                                 ? "bg-purple-100 text-purple-800"
+                                 : "bg-orange-100 text-orange-800"
+                             } px-2 py-1 rounded-full">${anime.type}</span>
+                        </div>
+                        <p class="text-gray-600 text-sm mb-4">${
+                          anime.details
+                        }</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${anime.genres
+                              .map(
+                                (genre) =>
+                                  `<span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">${genre}</span>`
+                              )
+                              .join("")}
+                        </div>
+                    </div>
+                `;
+          return card;
+        };
+
+        const renderCards = (data) => {
+          animeGrid.innerHTML = "";
+          if (data.length > 0) {
+            data.forEach((anime) => {
+              animeGrid.appendChild(createCard(anime));
+            });
+            noResults.classList.add("hidden");
+            animeGrid.classList.remove("hidden");
+          } else {
+            noResults.classList.remove("hidden");
+            animeGrid.classList.add("hidden");
+          }
+          resultsSummary.textContent = `${data.length} de ${animeData.length} títulos mostrados.`;
+        };
+
+        const filterData = () => {
+          const searchTerm = searchInput.value.toLowerCase();
+          let filteredData = animeData;
+
+          if (activeGenre !== "Todos") {
+            filteredData = filteredData.filter((anime) =>
+              anime.genres.includes(activeGenre)
+            );
+          }
+
+          if (searchTerm) {
+            filteredData = filteredData.filter((anime) =>
+              anime.title.toLowerCase().includes(searchTerm)
+            );
+          }
+
+          renderCards(filteredData);
+        };
+
+        const setupGenreFilters = () => {
+          const genres = ["Todos", ...allGenres];
+          genres.forEach((genre) => {
+            const button = document.createElement("button");
+            button.textContent = genre;
+            button.className =
+              "px-4 py-2 border rounded-full text-sm font-medium transition hover:bg-gray-200";
+            if (genre === "Todos") {
+              button.classList.add(
+                "active-filter",
+                "border-[#FF6740]",
+                "bg-[#FF6740]",
+                "text-white"
+              );
+            } else {
+              button.classList.add("bg-white", "text-gray-700");
+            }
+            button.addEventListener("click", () => {
+              activeGenre = genre;
+              document
+                .querySelectorAll("#genreFilters button")
+                .forEach((btn) => btn.classList.remove("active-filter"));
+              button.classList.add("active-filter");
+              filterData();
+            });
+            genreFiltersContainer.appendChild(button);
+          });
+        };
+
+        const setupChart = () => {
+          const genreCounts = allGenres.reduce((acc, genre) => {
+            acc[genre] = animeData.filter((anime) =>
+              anime.genres.includes(genre)
+            ).length;
+            return acc;
+          }, {});
+
+          const sortedGenres = Object.entries(genreCounts).sort(
+            ([, a], [, b]) => b - a
+          );
+
+          const labels = sortedGenres.map((item) => item[0]);
+          const data = sortedGenres.map((item) => item[1]);
+
+          const ctx = document.getElementById("genreChart").getContext("2d");
+          new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Nº de Títulos por Género",
+                  data: data,
+                  backgroundColor: "rgba(255, 103, 64, 0.6)",
+                  borderColor: "rgba(255, 103, 64, 1)",
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              indexAxis: "y",
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      return ` ${context.raw} títulos`;
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: "Cantidad de Títulos",
+                  },
+                },
+                y: {
+                  grid: {
+                    display: false,
+                  },
+                },
+              },
+            },
+          });
+        };
+
+        searchInput.addEventListener("input", filterData);
+        setupGenreFilters();
+        renderCards(animeData);
+        setupChart();
+      });
+    </script>
+  </body>
+</html>
